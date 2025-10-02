@@ -11,6 +11,7 @@ class OlhaNoisAquideNovo():
             browser = p.chromium.launch(headless=False)
             page = browser.new_page()
             page.goto(self.link)
+            start_Button = page.locator('body > app-root > div.body.row1.scroll-y > app-rpa1 > div > div.instructions.col.s3.m3.l3.uiColorSecondary > div:nth-child(7) > button')
             download_button = page.locator('body > app-root > div.body.row1.scroll-y > app-rpa1 > div > div.instructions.col.s3.m3.l3.uiColorSecondary > div:nth-child(7) > a')
             download_button.click()
             time.sleep(5)
