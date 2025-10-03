@@ -1,25 +1,28 @@
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import Page
 import time
 
 class StartChallenge:
-    '''
-    Classe inicializa a navegação no site, recebendo os parametros URL e BOTÃO DE START.
-    Abre o site, localiza via locator, o botão de start, iniciando o timer do desafio.
-    '''
-
-    def __init__ (self, url: str, start_button: str):
+    def __init__(self, url: str, start_button_selector: str, timeout=4000):
         self.url = url
-        self.start_button = start_button
+        self.start_button_selector = start_button_selector
+        self.timeout = timeout
 
-    def start_challenge(self):
+    def start_challenge(self, page: Page):
         try:
-            with sync_playwright() as p:
+            page.goto(self.url)
 
-                browser = p.chromium.launch(headless=False)
-                page = browser.new_page
-                page.goto(self.url)
+            page.wait_for_selector(self.start_button_selector, timeout=self.timeout)
+            button = page.locator(self.start_button_selector)
 
-                self.start_button.click()
+            if not (button.is_visible() and button.is_enabled()):
+                print("Erro ao clicar no botão")
+                return False
+
+            button.click()
+            print("Botão de Start clicado com sucesso!")
+            time.sleep(3)
+            return True
 
         except Exception as e:
-            return f'Butão de start não encontrato: {e}'
+            print(f"Botão de start não encontrado: {e}")
+            return False
