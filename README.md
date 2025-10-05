@@ -87,9 +87,9 @@ Durante a execução o navegador será aberto (a configuração atual utiliza he
 
 ## Licença
 
-Este projeto é fornecido sem licença explícita. Adicione um arquivo `LICENSE` se desejar definir os termos de uso.
+Porjeto de estudo, com um dos desafios mais conhecidos da internet
 
 ## Contato
 
-Se quiser ajuda para estender, testar ou configurar CI, abra uma issue ou entre em contato com o mantenedor do repositório.
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Perfil-blue?logo=linkedin)](https://www.linkedin.com/in/vitor-zavan-831907297/)
 
