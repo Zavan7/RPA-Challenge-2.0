@@ -84,58 +84,36 @@ Durante a execução o navegador será aberto (a configuração atual utiliza he
 Abaixo estão orientações e exemplos para empacotar e rodar a automação em um container Docker.
 
 Observações rápidas:
-- Recomenda-se usar a imagem oficial do Playwright (já inclui navegadores e dependências).
+- Recomenda-se usar a imagem oficial do Playwright (já inclui navegadores e dependências) quando desejar suporte completo ao Chromium sem precisar instalar dependências do sistema.
 - Em containers, prefira rodar em *headless* (`headless=True`) para evitar a necessidade de interface gráfica.
 - Monte volumes para `downloads/` e `logs/` para persistência dos arquivos.
 
-Exemplo 1 — usando a imagem oficial do Playwright (recomendado):
+Sobre o `Dockerfile` presente no repositório
+- O `Dockerfile` atual é multi-stage e utiliza `ghcr.io/astral-sh/uv:...` como *builder*.
+- Fluxo principal:
+  1. **Builder**: instala Python via `uv` (`uv python install 3.14.2`) e usa `uv sync` (com `uv.lock`/`pyproject.toml`) para preparar as dependências.
+  2. **Development**: parte da imagem `debian:trixie-slim`, copia `/python` e `/app` do *builder*, configura `PATH` para `/app/.venv/bin` e roda como usuário não-root (`uid 1000`).
+- O `Dockerfile` **não foi alterado** no build — ele permanece configurado para executar `uvicorn` (parece um resquício de outro projeto). Para executar a automação (`main.py`) **sem mudar o Dockerfile**, sobrescreva o comando no `docker run` ou no `docker-compose` (ex.: `docker run ... rpa-challenge:latest python main.py`).
+- Se desejar que eu adapte o build para instalar os navegadores do Playwright e executar `main.py` por padrão, posso aplicar essa alteração mediante sua confirmação.
 
-```dockerfile
-# Dockerfile (recomendado)
-FROM mcr.microsoft.com/playwright/python:latest
+Exemplos e ajustes rápidos
 
-WORKDIR /app
-
-COPY pyproject.toml ./
-COPY . .
-
-RUN pip install --no-cache-dir -e .
-# A imagem oficial já inclui os navegadores; se necessário:
-# RUN python -m playwright install
-
-ENV PYTHONUNBUFFERED=1
-
-VOLUME ["/app/downloads", "/app/logs"]
-
-CMD ["python", "main.py"]
+- Build:
+```powershell
+docker build -t rpa-challenge:latest .
 ```
 
-Exemplo 2 — usando uma imagem base Python (instalando dependências do sistema):
-
-```dockerfile
-# Dockerfile alternativo (python:3.13-slim)
-FROM python:3.13-slim
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libxkbcommon0 libxcomposite1 libxrandr2 libgbm1 libgtk-3-0 libpangocairo-1.0-0 libx11-6 libxss1 libasound2 \
- && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-COPY pyproject.toml ./
-COPY . .
-
-RUN pip install --upgrade pip \
- && pip install -e . \
- && python -m playwright install --with-deps
-
-ENV PYTHONUNBUFFERED=1
-VOLUME ["/app/downloads", "/app/logs"]
-
-CMD ["python", "main.py"]
+- Run (sobrescrevendo o CMD para rodar a automação `main.py` e persistindo downloads/logs):
+```powershell
+docker run --rm -v ${PWD}:/app -v ${PWD}/downloads:/app/downloads -v ${PWD}/logs:/app/logs --user 1000 rpa-challenge:latest python main.py
 ```
 
-Exemplo `docker-compose.yml`:
+- Se preferir ajustar o `Dockerfile` para instalar os navegadores do Playwright dentro da imagem (recomendado para execução em container), adicione em uma das etapas:
+```dockerfile
+RUN python -m playwright install --with-deps
+```
 
+- Exemplo de `docker-compose.yml` (com override de comando):
 ```yaml
 version: '3.8'
 services:
@@ -148,25 +126,43 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
     shm_size: '1gb'
-    # command: ["python", "main.py"] # opcional
+    command: ["python", "main.py"]
 ```
 
-Comandos úteis:
+Uso de `docker-compose.override.yml` (pronto para executar `main.py`)
+- Foi adicionado um arquivo `docker-compose.override.yml` que sobrescreve o comando do serviço para executar `python main.py`, monta os volumes (`downloads/` e `logs/`), define `HEADLESS=1` e roda com o usuário `1000`.
 
+Exemplo (`docker-compose.override.yml`):
+```yaml
+version: '3.8'
+services:
+  rpa:
+    command: ["python", "main.py"]
+    volumes:
+      - ./downloads:/app/downloads
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - HEADLESS=1
+    user: "1000"
+    shm_size: '1gb'
+```
+
+Como usar (exemplos):
 ```powershell
-# build
-docker build -t rpa-challenge:latest .
+# build (uma vez):
+docker compose build
 
-# run (persistindo downloads e logs)
-docker run --rm -v ${PWD}:/app -v ${PWD}/downloads:/app/downloads -v ${PWD}/logs:/app/logs rpa-challenge:latest
+# subir com o override (sobrescreve o comando definido no Dockerfile para rodar main.py):
+docker compose up
 
-# ou
+# ou, sem compose v2:
 docker-compose up --build
 ```
 
-Dicas:
-- Se optar por `python:3.13-slim`, use `python -m playwright install --with-deps` no Dockerfile para instalar dependências do navegador.
-- Pode ser necessário aumentar `--shm-size` (ex.: `--shm-size=1g`) ao executar com `docker run` para evitar problemas com o Chromium.
+Dicas finais:
+- O `Dockerfile` do repositório não foi alterado (mantém `uvicorn` como CMD). O `docker-compose.override.yml` é uma forma não intrusiva de executar `main.py` em containers sem alterar o build.
+- Se quiser, posso também ajustar `main.py` para respeitar a variável `HEADLESS` (recomendado) — quer que eu faça isso?
 
 ## Observações e boas práticas
 - Garanta que a versão do Python seja compatível (>=3.13).

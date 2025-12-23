@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  rpa:
+    command: ["python", "main.py"]
+    volumes:
+      - ./downloads:/app/downloads
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - HEADLESS=1
+    user: "1000"
+    shm_size: '1gb'
